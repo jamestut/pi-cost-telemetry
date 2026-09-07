@@ -38,7 +38,7 @@ import threading
 import traceback
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-# Turns table: one row per ingested turn; payload keeps the raw JSON.
+# Turns table: one row per ingested turn.
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS turns (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,8 +62,7 @@ CREATE TABLE IF NOT EXISTS turns (
     cost_out REAL NOT NULL DEFAULT 0,
     cost_cache_read REAL NOT NULL DEFAULT 0,
     cost_cache_write REAL NOT NULL DEFAULT 0,
-    cost_total REAL NOT NULL DEFAULT 0,
-    payload TEXT NOT NULL DEFAULT '{}'
+    cost_total REAL NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_turns_session_time ON turns (session, received_at_ms);
 CREATE INDEX IF NOT EXISTS idx_turns_model ON turns (model);
@@ -268,7 +267,7 @@ def make_handler(key_to_session, db, db_lock):
                 self.close_connection = True
 
         def store_turn(self, session, p):
-            """Insert one turn payload into the turns table.
+            """Insert one turn into the turns table.
 
             Args:
                 session: Bucket name derived from the Bearer key.
@@ -300,8 +299,6 @@ def make_handler(key_to_session, db, db_lock):
                 cost.get("cacheRead", 0),
                 cost.get("cacheWrite", 0),
                 cost.get("total", 0),
-                # Keep full payload for debugging/reprocessing.
-                json.dumps(p),
             )
             # Serialize writes: sqlite connection is shared across threads.
             with db_lock:
@@ -311,7 +308,7 @@ def make_handler(key_to_session, db, db_lock):
                     " thinking_level, stop_reason, in_tokens, out_tokens,"
                     " cache_read, cache_write, total_tokens, reasoning_tokens,"
                     " cost_in, cost_out, cost_cache_read, cost_cache_write,"
-                    " cost_total, payload) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    " cost_total) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     row,
                 )
                 db.commit()
