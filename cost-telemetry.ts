@@ -196,7 +196,13 @@ export default function costTelemetry(pi: ExtensionAPI) {
 				totalTokens: message.usage.totalTokens,
 				reasoning: message.usage.reasoning,
 			},
-			cost: { ...message.usage.cost },
+			cost: {
+				input: message.usage.cost.input,
+				output: message.usage.cost.output,
+				cacheRead: message.usage.cost.cacheRead,
+				cacheWrite: message.usage.cost.cacheWrite,
+				total: message.usage.cost.total,
+			},
 		};
 
 		// Fire-and-forget: log failures, track for shutdown drain.
