@@ -156,13 +156,14 @@ def open_db(path):
     return conn
 
 
-def make_handler(key_to_session, db, db_lock):
+def make_handler(key_to_session, db, db_lock, verbose=False):
     """Build the per-process request handler class.
 
     Args:
         key_to_session: Bearer key -> session bucket mapping.
         db: Shared SQLite connection.
         db_lock: Threading lock serializing DB access.
+        verbose: When True, print access logs to stdout.
 
     Returns:
         TelemetryHandler subclass bound to the given config and DB.
@@ -174,11 +175,14 @@ def make_handler(key_to_session, db, db_lock):
         protocol_version = "HTTP/1.1"
 
         def log_message(self, fmt, *args):
-            """Write access logs to stderr (default goes to stderr anyway)."""
-            sys.stderr.write(
+            """Access log line; only printed when running with -v/--verbose."""
+            if not verbose:
+                return
+            sys.stdout.write(
                 "%s - - [%s] %s\n"
                 % (self.client_address[0], self.log_date_time_string(), fmt % args)
             )
+            sys.stdout.flush()
 
         def send_json(self, status, obj):
             """Send obj as JSON with explicit length and closed connection."""
@@ -430,6 +434,7 @@ def main():
     parser.add_argument("-d", "--db", default="telemetry.db", help="sqlite file")
     parser.add_argument("-b", "--listen-host", default="127.0.0.1", help="bind address")
     parser.add_argument("-p", "--listen-port", type=int, default=8000, help="listen port")
+    parser.add_argument("-v", "--verbose", action="store_true", help="print access log to stdout")
     args = parser.parse_args()
 
     # Load auth map and init DB before binding the port.
@@ -438,7 +443,7 @@ def main():
     db_lock = threading.Lock()
 
     # Threaded server so concurrent POSTs do not block each other.
-    handler = make_handler(key_to_session, db, db_lock)
+    handler = make_handler(key_to_session, db, db_lock, verbose=args.verbose)
     server = http.server.ThreadingHTTPServer(
         (args.listen_host, args.listen_port), handler
     )
